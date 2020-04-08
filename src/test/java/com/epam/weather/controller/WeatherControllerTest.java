@@ -34,8 +34,8 @@ public class WeatherControllerTest {
     private static final String PASSWORD = "123456";
     private static final String CITY_ID = "756135";
     private static final String APP_ID = "7ee0537507dc0758af5c72dfc17bdb58";
-    public static final String PARAM_ID = "id";
-    public static final String PARAM_APPID = "APPID";
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_APPID = "APPID";
 
     @Autowired
     private MockMvc mockMvc;
