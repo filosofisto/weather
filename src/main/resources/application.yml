@@ -1,0 +1,1 @@
+endpoint: https://api.openweathermap.org/data/2.5/weather?id={CITY_ID}&APPID={APPLICATION_ID}
