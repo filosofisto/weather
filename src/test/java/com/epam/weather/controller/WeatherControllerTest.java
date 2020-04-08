@@ -1,5 +1,6 @@
 package com.epam.weather.controller;
 
+import com.epam.weather.exception.ErrorMessage;
 import com.epam.weather.services.OpenWeatherMapService;
 import com.epam.weather.to.WeatherResult;
 import com.epam.weather.util.Messages;
@@ -10,8 +11,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.client.HttpClientErrorException;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.any;
@@ -20,7 +24,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "schedule.enabled=false")
 @AutoConfigureMockMvc
 @Import({Messages.class})
 public class WeatherControllerTest {
@@ -41,6 +45,9 @@ public class WeatherControllerTest {
 
     @MockBean
     private OpenWeatherMapService service;
+
+    @Autowired
+    private Messages messages;
 
     @Test
     public void responsStatus401() throws Exception {
@@ -66,10 +73,52 @@ public class WeatherControllerTest {
         ).andExpect(status().isOk());
     }
 
+    @Test
+    public void responseStatus500() throws Exception {
+        when(service.weather(any(), any())).thenThrow(
+                HttpClientErrorException.create(HttpStatus.INTERNAL_SERVER_ERROR, "500", new HttpHeaders(), null, null)
+        );
 
+        MvcResult mvcResult = mockMvc.perform(
+                get(URL)
+                        .with(httpBasic(USERNAME, PASSWORD))
+                        .param(PARAM_ID, CITY_ID)
+                        .param(PARAM_APPID, APP_ID)
+        )
+        .andExpect(status().isInternalServerError())
+        .andReturn();
+
+        ErrorMessage errorMessage = objectMapper.readValue(
+                mvcResult.getResponse().getContentAsString(), ErrorMessage.class
+        );
+
+        assertEquals(messages.get("ERR_UNEXPECTED"), errorMessage.getMessage());
+    }
 
     @Test
-    public void checkMockedResponse() throws Exception {
+    public void responseStatus404() throws Exception {
+        when(service.weather(any(), any())).thenThrow(
+                HttpClientErrorException.create(HttpStatus.NOT_FOUND, "404", new HttpHeaders(), null, null)
+        );
+
+        MvcResult mvcResult = mockMvc.perform(
+                get(URL)
+                        .with(httpBasic(USERNAME, PASSWORD))
+                        .param(PARAM_ID, CITY_ID)
+                        .param(PARAM_APPID, APP_ID)
+        )
+        .andExpect(status().isNotFound())
+        .andReturn();
+
+        ErrorMessage errorMessage = objectMapper.readValue(
+                mvcResult.getResponse().getContentAsString(), ErrorMessage.class
+        );
+
+        assertEquals(messages.get("ERR_404"), errorMessage.getMessage());
+    }
+
+    @Test
+    public void successResponse() throws Exception {
         WeatherResult weatherResult = new WeatherResult();
         weatherResult.setAtmosfericPressure(1);
         weatherResult.setMinTemperature(10.0);
